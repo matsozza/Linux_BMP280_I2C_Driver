@@ -1,0 +1,21 @@
+{
+    "files.associations": {
+        "spidev.h": "c",
+        "stdint.h": "c",
+        "getopt.h": "c",
+        "stdlib.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "spi.h": "c",
+        "cstdlib": "c",
+        "libspi.h": "c",
+        "atomic": "c",
+        "*.tcc": "c",
+        "sstream": "c",
+        "fcntl.h": "c",
+        "unistd.h": "c",
+        "i2c-dev.h": "c"
+    },
+    "memory-view.showMemoryPanel": true
+}

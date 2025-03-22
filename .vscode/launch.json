@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "gdb",
+            "request": "attach",
+            "name": "Debug in Target Hardware",
+            "gdbpath": "/home/matheus/x-tools/aarch64-rpi3-linux-gnu/bin/aarch64-rpi3-linux-gnu-gdb",
+            "executable": "${workspaceRoot}/bin/bmp280",
+            "target": "rpi.local:1234",
+            "remote": true,
+            "printCalls": true,
+            "cwd": "${workspaceRoot}",
+            "valuesFormatting": "parseText",
+            "preLaunchTask": "Start gdbserver on target",
+            
+        }
+    ]
+}
