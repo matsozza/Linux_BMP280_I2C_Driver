@@ -1,7 +1,7 @@
 VERSION=1:0:0
 
 # Compiler and Flags
-CROSS_COMPILE=/home/matheus/x-tools/aarch64-rpi3-linux-gnu/bin/aarch64-rpi3-linux-gnu-
+CROSS_COMPILE=aarch64-linux-gnu-
 CC=$(CROSS_COMPILE)gcc
 CFLAGS=-Wall -Wextra -ggdb3 -I./include
 LDFLAGS=-Wl,-rpath=./lib
@@ -50,8 +50,9 @@ test: $(BIN_FILES)
 	@echo "\n------------------------------------------------"
 	@echo "Sending test files to the TARGET" | fold -w 48
 	@echo "------------------------------------------------"
-	ssh matheus@rpi.local 'rm -rf *; mkdir -p lib'
-	scp $(BIN_FILES) matheus@rpi.local:~/$(BIN_NAME)
+	ssh matheus@rpi.local 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
+	scp $(BIN_FILES) matheus@rpi.local:~/$(BIN_FILES)
+	scp $(SRC_FILES) matheus@rpi.local:~/$(SRC_DIR)
 	@echo "\n------------------------------------------------"
 	@echo "DONE!" | fold -w 48
 	@echo "------------------------------------------------"
