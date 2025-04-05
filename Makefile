@@ -4,8 +4,8 @@ VERSION=1:0:0
 CROSS_COMPILE=aarch64-linux-gnu-
 CC=$(CROSS_COMPILE)gcc
 CFLAGS=-Wall -Wextra -ggdb3 -I./include
-LDFLAGS=-Wl,-rpath=./lib
-LIBS=
+LDFLAGS=-static -L./lib 
+LIBS=-lgpiod
 
 # Directories
 SRC_DIR:=./src
@@ -29,7 +29,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "OBJECT: " $@ | fold -w 48
 	@echo "------------------------------------------------"
 	@mkdir -p $(OBJ_DIR)
-	$(CC) -Wall -Wextra -g -I./include -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Rule to compile test file
 $(BIN_FILES): $(OBJ_FILES)
@@ -40,7 +40,7 @@ $(BIN_FILES): $(OBJ_FILES)
 	@echo "------------------------------------------------"
 	@rm -rf $(BIN_FILES)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $^ -o $@  -I./include 
+	$(CC) $^ -o $@ $(LDFLAGS) $(LIBS) 
 
 # Default rule to compile libraries
 all: $(BIN_FILES)

@@ -4,6 +4,10 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
+#include <time.h>
+#include "gpiod.h"
+#include "dht22_data.h"
+#include <inttypes.h>
 
 #define I2C_BUS "/dev/i2c-1"
 #define BMP280_ADDR 0x76       // Change to 0x77 if needed
@@ -16,6 +20,13 @@
 #define OSRS_T 0b010
 #define OSRS_P 0b101
 #define MODE 0b11
+
+extern struct gpiod_chip *chip;
+extern struct gpiod_line_settings *lineSettingsQuery, *lineSettingsData;
+extern struct gpiod_line_config *lineConfigQuery, *lineConfigData;
+extern struct gpiod_request_config *requestConfigQuery, *requestConfigData;
+extern struct gpiod_line_request *requestQuery, *requestData;
+extern unsigned int *offsetsQuery, *offsetsData;
 
 // Calibration data
 uint16_t  dig_t1, dig_p1;
@@ -100,60 +111,61 @@ uint32_t compensate_pressure(uint32_t rawPressure)
     return pressure;
 }
 
-int main()
-{
-    int file;
+// BMP280 Temperature and Pressure Sensor
+void read_sensor()
+{   
+    int fd;
     char buf[24];
 
     // Open I2C bus
-    if ((file = open(I2C_BUS, O_RDWR)) < 0)
+    if ((fd = open(I2C_BUS, O_RDWR)) < 0)
     {
         perror("Failed to open I2C bus");
         return 1;
     }
 
     // Select BMP280
-    if (ioctl(file, I2C_SLAVE, BMP280_ADDR) < 0)
+    if (ioctl(fd, I2C_SLAVE, BMP280_ADDR) < 0)
     {
         perror("Failed to select BMP280");
-        close(file);
+        close(fd);
         return 1;
     }
 
     // Write - Set 'ctrl_meas'
     buf[0] = 0xF4;
     buf[1] = (OSRS_T << 5) | (OSRS_P << 2) | (MODE); // Full precision + forced mode. Temp is 20 bits + Pressure is 20bit
-    if (write(file, buf, 2) != 2)
+    if (write(fd, buf, 2) != 2)
     {
         perror("Failed to set ctrl_meas");
-        close(file);
+        close(fd);
         return 1;
     }
 
     // Write - Set 'config'
     buf[0] = 0xF5;
     buf[1] = (T_SB << 5) | (FILTER << 2) | (SPI3W_EN);
-    if (write(file, buf, 2) != 2)
+    if (write(fd, buf, 2) != 2)
     {
         perror("Failed to set config");
-        close(file);
+        close(fd);
         return 1;
     }
 
     // Write - Set register pointer to 0x88 (Calib. Data)
     buf[0] = 0x88;
-    if (write(file, buf, 1) != 1)
+    if (write(fd, buf, 1) != 1)
     {
         perror("Failed to set register to calib. data address");
-        close(file);
+        close(fd);
         return 1;
     }
 
     // Read 24 bytes from 0x88 (Calib. Data)
-    if (read(file, buf, 24) != 24)
+    if (read(fd, buf, 24) != 24)
     {
         perror("Failed to read calib. data");
-        close(file);
+        close(fd);
         return 1;
     }
 
@@ -175,18 +187,18 @@ int main()
     {
         // Write - Set register pointer to 0xF7 (Pressure MSB)
         buf[0] = PRESSURE_MSB_ADDR;
-        if (write(file, buf, 1) != 1)
+        if (write(fd, buf, 1) != 1)
         {
             perror("Failed to set register address");
-            close(file);
+            close(fd);
             return 1;
         }
 
         // Read 5 bytes from 0xF7 (Pressure and Temperature bits)
-        if (read(file, buf, 6) != 6)
+        if (read(fd, buf, 6) != 6)
         {
             perror("Failed to read BMP280 data");
-            close(file);
+            close(fd);
             return 1;
         }
 
@@ -205,6 +217,73 @@ int main()
         sleep(1);
     }
 
-    close(file);
-    return 0;
+    close(fd);
+}
+
+// DHT 22 Temperature and Humidity Sensor
+void read_sensor2()
+{
+    init_dht_gpio();
+    set_interrupt_dht_gpio(1);
+
+    struct timespec req = {0};
+    req.tv_sec = 0;        
+    req.tv_nsec = 20 * 1000000; 
+
+    printf("\nStarting!");
+    for(int idxS=0; idxS<10; idxS++)
+    {
+        //struct timespec t0, t1;
+        printf("\n------------------------------------------------------------");
+        uint64_t t0=0; 
+        uint16_t nEvents=0, actNEvents=0,fcnNEvents=0;
+
+        struct gpiod_edge_event_buffer *eventBuffer;
+        eventBuffer = gpiod_edge_event_buffer_new(100);
+        uint16_t timeBuffer[86];
+
+        //timespec_get(&t0, TIME_UTC);
+
+        set_value_dht_gpio(GPIOD_LINE_VALUE_INACTIVE);
+        nanosleep(&req, NULL);
+        set_value_dht_gpio(GPIOD_LINE_VALUE_ACTIVE);
+        //set_direction_dht_gpio(GPIOD_LINE_DIRECTION_INPUT);
+
+        // Commute to input
+        while(1)
+        {
+            if(gpiod_line_request_wait_edge_events(requestData, 500*1000*1000*1)==1)
+            {
+                nEvents = gpiod_line_request_read_edge_events(requestData, eventBuffer, 100);
+                if(nEvents>0)
+                {
+                    //printf("\n--------------- nEvents: %d", nEvents);
+                    actNEvents += nEvents;
+                    //printf("\n--------------- Act nEvents: %d", actNEvents);
+            
+                    fcnNEvents=gpiod_edge_event_buffer_get_num_events(eventBuffer);
+                    for(int idx=0; idx < fcnNEvents; idx++)
+                    {
+                        int64_t t1 = gpiod_edge_event_get_timestamp_ns(gpiod_edge_event_buffer_get_event(eventBuffer, idx));
+                        timeBuffer[actNEvents-fcnNEvents+idx]=(t1-t0)/1000;
+                        printf("\nEvent %d: %lld us", idx, (t1-t0)/1000);
+                        t0=t1;
+                    }
+                }
+            }
+            else
+            {
+                printf("\nTimeout - Capture total of %d events.", actNEvents);
+                break;
+            }
+            
+        }
+        //set_direction_dht_gpio(GPIOD_LINE_DIRECTION_OUTPUT);
+        sleep(2);
+    }
+}
+
+int main()
+{
+    read_sensor2();
 }
