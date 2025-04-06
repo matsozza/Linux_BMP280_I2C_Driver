@@ -3,7 +3,7 @@ VERSION=1:0:0
 # Compiler and Flags
 CROSS_COMPILE=aarch64-linux-gnu-
 CC=$(CROSS_COMPILE)gcc
-CFLAGS=-Wall -Wextra -ggdb3 -I./include
+CFLAGS=-Wall -Wextra -ggdb3 -I./include -pthread
 LDFLAGS=-static -L./lib 
 LIBS=-lgpiod
 
@@ -52,7 +52,7 @@ test: $(BIN_FILES)
 	@echo "------------------------------------------------"
 	ssh matheus@rpi.local 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
 	scp $(BIN_FILES) matheus@rpi.local:~/$(BIN_FILES)
-	scp $(SRC_FILES) matheus@rpi.local:~/$(SRC_DIR)
+	# scp $(SRC_FILES) matheus@rpi.local:~/$(SRC_DIR)
 	@echo "\n------------------------------------------------"
 	@echo "DONE!" | fold -w 48
 	@echo "------------------------------------------------"

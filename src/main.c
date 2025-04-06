@@ -8,6 +8,10 @@
 #include "gpiod.h"
 #include "dht22_data.h"
 #include <inttypes.h>
+#include <pthread.h>     // pthread_setschedparam, pthread_self
+#include <sched.h>       // sched_param, SCHED_FIFO
+#include <sys/mman.h>    // mlockall, MCL_CURRENT, MCL_FUTURE
+
 
 #define I2C_BUS "/dev/i2c-1"
 #define BMP280_ADDR 0x76       // Change to 0x77 if needed
@@ -220,70 +224,28 @@ void read_sensor()
     close(fd);
 }
 
-// DHT 22 Temperature and Humidity Sensor
-void read_sensor2()
-{
-    init_dht_gpio();
-    set_interrupt_dht_gpio(1);
-
-    struct timespec req = {0};
-    req.tv_sec = 0;        
-    req.tv_nsec = 20 * 1000000; 
-
-    printf("\nStarting!");
-    for(int idxS=0; idxS<10; idxS++)
-    {
-        //struct timespec t0, t1;
-        printf("\n------------------------------------------------------------");
-        uint64_t t0=0; 
-        uint16_t nEvents=0, actNEvents=0,fcnNEvents=0;
-
-        struct gpiod_edge_event_buffer *eventBuffer;
-        eventBuffer = gpiod_edge_event_buffer_new(100);
-        uint16_t timeBuffer[86];
-
-        //timespec_get(&t0, TIME_UTC);
-
-        set_value_dht_gpio(GPIOD_LINE_VALUE_INACTIVE);
-        nanosleep(&req, NULL);
-        set_value_dht_gpio(GPIOD_LINE_VALUE_ACTIVE);
-        //set_direction_dht_gpio(GPIOD_LINE_DIRECTION_INPUT);
-
-        // Commute to input
-        while(1)
-        {
-            if(gpiod_line_request_wait_edge_events(requestData, 500*1000*1000*1)==1)
-            {
-                nEvents = gpiod_line_request_read_edge_events(requestData, eventBuffer, 100);
-                if(nEvents>0)
-                {
-                    //printf("\n--------------- nEvents: %d", nEvents);
-                    actNEvents += nEvents;
-                    //printf("\n--------------- Act nEvents: %d", actNEvents);
-            
-                    fcnNEvents=gpiod_edge_event_buffer_get_num_events(eventBuffer);
-                    for(int idx=0; idx < fcnNEvents; idx++)
-                    {
-                        int64_t t1 = gpiod_edge_event_get_timestamp_ns(gpiod_edge_event_buffer_get_event(eventBuffer, idx));
-                        timeBuffer[actNEvents-fcnNEvents+idx]=(t1-t0)/1000;
-                        printf("\nEvent %d: %lld us", idx, (t1-t0)/1000);
-                        t0=t1;
-                    }
-                }
-            }
-            else
-            {
-                printf("\nTimeout - Capture total of %d events.", actNEvents);
-                break;
-            }
-            
-        }
-        //set_direction_dht_gpio(GPIOD_LINE_DIRECTION_OUTPUT);
-        sleep(2);
-    }
-}
-
 int main()
 {
-    read_sensor2();
+    /*
+    mlockall(MCL_CURRENT | MCL_FUTURE); // evitar page faults
+    struct sched_param sp = { .sched_priority = 80 };
+    pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp);
+    */
+
+
+    init_DHT22_sensor();
+    while(1)
+    {
+        DHT22_data_t dhtData = query_DHT22_sensor();
+        if(dhtData.validity)
+        {
+            printf("\n Temp: %f -- Humi: %f", ((float)(dhtData.temperature))/10, ((float)dhtData.humidity)/10);            
+        }
+        else
+        {
+            printf("\n Temp: -- -- Humi: --  -> ERROR");
+        }
+
+        sleep(3);
+    }
 }

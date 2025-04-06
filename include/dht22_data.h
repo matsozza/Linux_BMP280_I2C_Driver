@@ -5,15 +5,15 @@
 #define DHT22_PIN_DATA_QUERY 22
 #define DHT22_PIN_DATA_INPUT 26
 
-// Forward declaration of struct and enum
-enum gpiod_line_value;
-enum gpiod_line_direction;
-struct gpiod_line_request;
+typedef struct
+{
+    uint16_t temperature;
+    uint16_t humidity;
+    uint8_t CRC;
+    uint8_t validity;
+} DHT22_data_t;
 
-int init_dht_gpio();
-int set_direction_dht_gpio(enum gpiod_line_direction direction);
-int set_value_dht_gpio(enum gpiod_line_value value);
-int set_interrupt_dht_gpio(uint8_t active);
-int wait_interrupt_dht_gpio();
+void init_DHT22_sensor();
+DHT22_data_t query_DHT22_sensor();
 
 #endif
