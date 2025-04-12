@@ -178,7 +178,7 @@ DHT22_data_t query_DHT22_sensor()
         {
             if(timeBuffer[idxD] > 72 && timeBuffer[idxD]<88 &&
                 timeBuffer[idxD+1] > 72 && timeBuffer[idxD+1]<88)
-             {
+             {        return returnData;
                 syncCntr=1;
                 idxD+=2;
                 break;
