@@ -5,13 +5,17 @@ CROSS_COMPILE=aarch64-linux-gnu-
 CC=$(CROSS_COMPILE)gcc
 CFLAGS=-Wall -Wextra -ggdb3 -I./include -pthread
 LDFLAGS=-static -L./lib 
-LIBS=-lgpiod
+LIBS=
 
 # Directories
 SRC_DIR:=./src
 OBJ_DIR:=./obj
 LIB_DIR:=./lib
 BIN_DIR:=./bin
+
+# Target destination
+TAR_DEV := rpi.local
+TAR_DEST := ~
 
 # Filenames
 BIN_NAME:=bmp280
@@ -29,6 +33,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "OBJECT: " $@ | fold -w 48
 	@echo "------------------------------------------------"
 	@mkdir -p $(OBJ_DIR)
+	-clang-format -i $(SRC_DIR)/%.c --style=Microsoft --verbose # Try to do linting, if available
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Rule to compile test file
@@ -50,9 +55,9 @@ test: $(BIN_FILES)
 	@echo "\n------------------------------------------------"
 	@echo "Sending test files to the TARGET" | fold -w 48
 	@echo "------------------------------------------------"
-	ssh matheus@rpi.local 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
-	scp $(BIN_FILES) matheus@rpi.local:~/$(BIN_FILES)
-	# scp $(SRC_FILES) matheus@rpi.local:~/$(SRC_DIR)
+	ssh $(TAR_DEV) 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
+	scp $(BIN_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_FILES)
+	# scp $(SRC_FILES) $(TAR_DEV):$(TAR_DEST)/$(SRC_DIR)
 	@echo "\n------------------------------------------------"
 	@echo "DONE!" | fold -w 48
 	@echo "------------------------------------------------"

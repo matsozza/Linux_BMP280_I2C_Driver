@@ -1,3 +1,4 @@
+// ----------------------------------------------------- Includes ------------------------------------------------------
 #include <stdio.h>
 #include <stdint.h>
 #include <fcntl.h>
@@ -5,14 +6,11 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 #include <time.h>
-#include "gpiod.h"
-#include "dht22_data.h"
 #include <inttypes.h>
-#include <pthread.h>     // pthread_setschedparam, pthread_self
 #include <sched.h>       // sched_param, SCHED_FIFO
 #include <sys/mman.h>    // mlockall, MCL_CURRENT, MCL_FUTURE
 
-
+// ------------------------------------------------ Macros & Defines ---------------------------------------------------
 #define I2C_BUS "/dev/i2c-1"
 #define BMP280_ADDR 0x76       // Change to 0x77 if needed
 #define PRESSURE_MSB_ADDR 0xF7 // Start of pressure data
@@ -25,19 +23,19 @@
 #define OSRS_P 0b101
 #define MODE 0b11
 
-extern struct gpiod_chip *chip;
-extern struct gpiod_line_settings *lineSettingsQuery, *lineSettingsData;
-extern struct gpiod_line_config *lineConfigQuery, *lineConfigData;
-extern struct gpiod_request_config *requestConfigQuery, *requestConfigData;
-extern struct gpiod_line_request *requestQuery, *requestData;
-extern unsigned int *offsetsQuery, *offsetsData;
+// ------------------------------------------------------ Typedef ------------------------------------------------------
 
+// ---------------------------------------------------- Global Vars ----------------------------------------------------
 // Calibration data
 uint16_t  dig_t1, dig_p1;
 int16_t  dig_t2, dig_t3, dig_p2, dig_p3, 
                 dig_p4, dig_p5, dig_p6, 
                 dig_p7, dig_p8, dig_p9;
 
+// ----------------------------------------------------- Prototypes ----------------------------------------------------
+
+
+// ---------------------------------------------------- Functions ------------------------------------------------------
 // Returns temperature in DegC, resolution is 0.01 DegC. Output value of “5123” equals 51.23 DegC.
 // t_fine carries fine temperature as global value
 int32_t t_fine;
@@ -116,7 +114,7 @@ uint32_t compensate_pressure(uint32_t rawPressure)
 }
 
 // BMP280 Temperature and Pressure Sensor
-void read_sensor()
+void read_bmp_sensor()
 {   
     int fd;
     char buf[24];
@@ -226,26 +224,5 @@ void read_sensor()
 
 int main()
 {
-    /*
-    mlockall(MCL_CURRENT | MCL_FUTURE); // evitar page faults
-    struct sched_param sp = { .sched_priority = 80 };
-    pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp);
-    */
-
-
-    init_DHT22_sensor();
-    while(1)
-    {
-        DHT22_data_t dhtData = query_DHT22_sensor();
-        if(dhtData.validity)
-        {
-            printf("\n Temp: %f -- Humi: %f", ((float)(dhtData.temperature))/10, ((float)dhtData.humidity)/10);            
-        }
-        else
-        {
-            printf("\n Temp: -- -- Humi: --  -> ERROR");
-        }
-
-        sleep(3);
-    }
+    read_bmp_sensor();
 }
