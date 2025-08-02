@@ -4,11 +4,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/ipc.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <linux/i2c-dev.h>
 #include <time.h>
 #include <inttypes.h>
 #include <sched.h>       // sched_param, SCHED_FIFO
 #include <sys/mman.h>    // mlockall, MCL_CURRENT, MCL_FUTURE
+#include <errno.h>
+#include <time.h>
 
 // ------------------------------------------------ Macros & Defines ---------------------------------------------------
 #define I2C_BUS "/dev/i2c-1"
@@ -24,6 +29,11 @@
 #define MODE 0b11
 
 // ------------------------------------------------------ Typedef ------------------------------------------------------
+typedef struct {
+    float temperature;
+    float pressure;
+    uint8_t validity;
+} BMP280_Data_t;
 
 // ---------------------------------------------------- Global Vars ----------------------------------------------------
 // Calibration data
@@ -114,24 +124,27 @@ uint32_t compensate_pressure(uint32_t rawPressure)
 }
 
 // BMP280 Temperature and Pressure Sensor
-void read_bmp_sensor()
+BMP280_Data_t read_bmp_sensor()
 {   
     int fd;
     char buf[24];
+    BMP280_Data_t bmp280_data = {0, 0, 0};
+
+    printf("\nBMP280 - Polling for Temperature and Pressure Data...\n");
 
     // Open I2C bus
     if ((fd = open(I2C_BUS, O_RDWR)) < 0)
     {
-        perror("Failed to open I2C bus");
-        return 1;
+        perror("BMP280 - Failed to open I2C bus");
+        return bmp280_data;
     }
 
     // Select BMP280
     if (ioctl(fd, I2C_SLAVE, BMP280_ADDR) < 0)
     {
-        perror("Failed to select BMP280");
+        perror("BMP280 -Failed to select BMP280");
         close(fd);
-        return 1;
+        return bmp280_data;
     }
 
     // Write - Set 'ctrl_meas'
@@ -139,9 +152,9 @@ void read_bmp_sensor()
     buf[1] = (OSRS_T << 5) | (OSRS_P << 2) | (MODE); // Full precision + forced mode. Temp is 20 bits + Pressure is 20bit
     if (write(fd, buf, 2) != 2)
     {
-        perror("Failed to set ctrl_meas");
+        perror("BMP280 - Failed to set ctrl_meas");
         close(fd);
-        return 1;
+        return bmp280_data;
     }
 
     // Write - Set 'config'
@@ -149,26 +162,26 @@ void read_bmp_sensor()
     buf[1] = (T_SB << 5) | (FILTER << 2) | (SPI3W_EN);
     if (write(fd, buf, 2) != 2)
     {
-        perror("Failed to set config");
+        perror("BMP280 - Failed to set config");
         close(fd);
-        return 1;
+        return bmp280_data;
     }
 
     // Write - Set register pointer to 0x88 (Calib. Data)
     buf[0] = 0x88;
     if (write(fd, buf, 1) != 1)
     {
-        perror("Failed to set register to calib. data address");
+        perror("BMP280 - Failed to set register to calib. data address");
         close(fd);
-        return 1;
+        return bmp280_data;
     }
 
     // Read 24 bytes from 0x88 (Calib. Data)
     if (read(fd, buf, 24) != 24)
     {
-        perror("Failed to read calib. data");
+        perror("BMP280 - Failed to read calib. data");
         close(fd);
-        return 1;
+        return bmp280_data;
     }
 
     int bufIdx = 0;
@@ -185,44 +198,104 @@ void read_bmp_sensor()
     dig_p8 = (buf[bufIdx+1] << 8) | buf[bufIdx]; bufIdx+=2;
     dig_p9 = (buf[bufIdx+1] << 8) | buf[bufIdx]; bufIdx+=2;
 
-    for (int n = 0; n < 50; n++)
+    // Write - Set register pointer to 0xF7 (Pressure MSB)
+    buf[0] = PRESSURE_MSB_ADDR;
+    if (write(fd, buf, 1) != 1)
     {
-        // Write - Set register pointer to 0xF7 (Pressure MSB)
-        buf[0] = PRESSURE_MSB_ADDR;
-        if (write(fd, buf, 1) != 1)
-        {
-            perror("Failed to set register address");
-            close(fd);
-            return 1;
-        }
-
-        // Read 5 bytes from 0xF7 (Pressure and Temperature bits)
-        if (read(fd, buf, 6) != 6)
-        {
-            perror("Failed to read BMP280 data");
-            close(fd);
-            return 1;
-        }
-
-        uint32_t pressure_raw = ((uint32_t)buf[0] << 12) 
-            | ((uint32_t) buf[1] << 4) 
-            |  ((uint32_t)(buf[2]) >> 4); // Combine MSB + LSB
-        uint32_t temperature_raw = ((uint32_t)buf[3] << 12) 
-            | ((uint32_t)buf[4] << 4)
-            | ((uint32_t)(buf[5]) >> 4); // Combine MSB + LSB;
-
-        int32_t temperature_calib = compensate_temperature(temperature_raw);
-        uint32_t pressure_calib = compensate_pressure(pressure_raw);
-
-        printf("\nPressure Data: 0x%X (%d) -> %f kPa\n", pressure_raw, pressure_raw, ((float)pressure_calib)/100000);
-        printf("Temperature Data: 0x%X (%d) -> %f degC\n", temperature_raw, temperature_raw, ((float)temperature_calib)/100);
-        sleep(1);
+        perror("BMP280 - Failed to set register address");
+        close(fd);
+        return bmp280_data;
     }
 
+    // Read 5 bytes from 0xF7 (Pressure and Temperature bits)
+    if (read(fd, buf, 6) != 6)
+    {
+        perror("BMP280 - Failed to read BMP280 data");
+        close(fd);
+        return bmp280_data;
+    }
+
+    uint32_t pressure_raw = ((uint32_t)buf[0] << 12) 
+        | ((uint32_t) buf[1] << 4) 
+        |  ((uint32_t)(buf[2]) >> 4); // Combine MSB + LSB
+    uint32_t temperature_raw = ((uint32_t)buf[3] << 12) 
+        | ((uint32_t)buf[4] << 4)
+        | ((uint32_t)(buf[5]) >> 4); // Combine MSB + LSB;
+
+    int32_t temperature_calib = compensate_temperature(temperature_raw);
+    uint32_t pressure_calib = compensate_pressure(pressure_raw);
+
+    printf("BMP280 - Pressure Data: 0x%X (%d) -> %f kPa\n", pressure_calib, pressure_calib, ((float)pressure_calib)/100000);
+    printf("BMP280 - Temperature Data: 0x%X (%d) -> %f degC\n\n", temperature_calib, temperature_calib, ((float)temperature_calib)/100);
+    bmp280_data.temperature = (float)temperature_calib/100;
+    bmp280_data.pressure =  (float)pressure_calib/100000;
+    bmp280_data.validity = 1;
+
     close(fd);
+
+    return bmp280_data;
 }
 
+// Miliseconds sleep
+int msleep(long msec) {
+    struct timespec ts;
+    int res;
+
+    if (msec < 0) return -1;
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
+
+// Main routine for data collection
 int main()
 {
-    read_bmp_sensor();
+    /* Define pipe */
+    int stt = mkfifo("/tmp/bmp280_pipe", 0666);
+    if(stt == -1)
+    {
+        perror("BMP280 Intf - Error creating bmp280 pipe");    
+        unlink("/tmp/bmp280_pipe");
+        return 1;
+    }
+    printf("BMP280 Intf - Pipe created!\n");
+    
+    /* Read sensor data */
+    BMP280_Data_t bmp280_data;
+    bmp280_data = read_bmp_sensor();
+    
+    /* Insert data into pipe - Try to open pipe w/o blocking */
+    int fd;
+    int attemptCntr=0;
+    printf("BMP280 Intf - Attempt 1 to open the bmp280 pipe");
+    while((fd=open("/tmp/bmp280_pipe", O_WRONLY | O_NONBLOCK)) == -1)
+    {
+        printf("\rBMP280 Intf - Attempt %d to open the bmp280 pipe", attemptCntr+1);
+        if (attemptCntr > 50)
+        {
+            perror("BMP280 Intf - Aborting attempt to open bmp280 pipe after many attempts");
+            close(fd);
+            unlink("/tmp/bmp280_pipe");
+            return 1;
+        }       
+        attemptCntr++;
+        msleep(10);
+    }
+    printf("\nBMP280 Intf - Pipe opened!\n");
+
+    write(fd, "|", 1);
+    write(fd, (const void*) &bmp280_data, sizeof(bmp280_data));
+    write(fd, "*", 1);
+    printf("BMP280 Intf - BMP280 info written to the pipe!\n");
+
+    close(fd);
+    unlink("/tmp/bmp280_pipe");
+    return 0;
 }

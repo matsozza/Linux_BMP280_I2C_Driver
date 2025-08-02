@@ -16,8 +16,9 @@
         "fcntl.h": "c",
         "unistd.h": "c",
         "i2c-dev.h": "c",
-        "dht22_data.h": "c"
+        "dht22_data.h": "c",
+        "*.x": "c"
     },
     "memory-view.showMemoryPanel": true,
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "enabled"
 }

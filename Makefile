@@ -13,8 +13,12 @@ OBJ_DIR:=./obj
 LIB_DIR:=./lib
 BIN_DIR:=./bin
 
+# Python files
+PY_FILES = $(wildcard $(SRC_DIR)/*.py)
+
 # Target destination
-TAR_DEV := rpi.local
+#TAR_DEV := rpi.local
+TAR_DEV := 192.168.0.78
 TAR_DEST := ~
 
 # Filenames
@@ -57,7 +61,14 @@ test: $(BIN_FILES)
 	@echo "------------------------------------------------"
 	ssh $(TAR_DEV) 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
 	scp $(BIN_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_FILES)
+	scp $(PY_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_NAME).py
 	# scp $(SRC_FILES) $(TAR_DEV):$(TAR_DEST)/$(SRC_DIR)
+
+	@echo "\n------------------------------------------------"
+	@echo "Running test files" | fold -w 48
+	@echo "------------------------------------------------"
+	ssh $(TAR_DEV) 'sudo python -u ./bmp280.py'
+
 	@echo "\n------------------------------------------------"
 	@echo "DONE!" | fold -w 48
 	@echo "------------------------------------------------"
