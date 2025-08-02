@@ -15,11 +15,16 @@ def read_bmp280_pipe():
     Returns:
         None
     """
-    print("\n-- Running BMP280 binary --")    
-    res = subprocess.Popen(["./bin/bmp280"])
     
+    print("\n-- Running BMP280 binary --")    
+    
+    # Run sensor binary in a subprocess
+    res = subprocess.Popen(["./bin/bmp280"])    
+    
+    # Listen to the sensor data through its dedicated pipe (async)
     raw_data = async_listen_pipe()
     
+    # Confirm received data
     print(f"-- Received data size: {len(raw_data)} -- ")
     for r in raw_data:
         print(hex(r), end = " ")
@@ -27,12 +32,16 @@ def read_bmp280_pipe():
         
     # Remove SOF and EOF characters
     payload_data = raw_data[1:-1]    
-        
+    
+    # Unpack data        
     BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
     bmp280_data = BMP280_Data_t._make(struct.unpack("<ffbxxx", payload_data))
 
+    # Print results
     print(f"Pressure: {bmp280_data.pressure} kPa")
     print(f"Temperature: {bmp280_data.temperature:.2f} °C")
+    
+    return bmp280_data
 
 
 def async_listen_pipe():
@@ -71,6 +80,7 @@ def async_listen_pipe():
                 print(f"-- FIFO '{FIFO_PATH}' not found or not created yet. Waiting... -- ")
                 time.sleep(POLLING_INTVL)
     print("-- Unable to read from pipe. --")
+    return -1
 
 
 if __name__ == "__main__":
