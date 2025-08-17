@@ -19,7 +19,7 @@ def read_bmp280_pipe():
     print("\n-- Running BMP280 binary --")    
     
     # Run sensor binary in a subprocess
-    res = subprocess.Popen(["./bin/bmp280"])    
+    res = subprocess.Popen(["./bmp280/bin/bmp280"])    
     
     # Listen to the sensor data through its dedicated pipe (async)
     raw_data = async_listen_pipe()

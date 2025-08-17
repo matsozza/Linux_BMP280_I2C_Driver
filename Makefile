@@ -16,11 +16,6 @@ BIN_DIR:=./bin
 # Python files
 PY_FILES = $(wildcard $(SRC_DIR)/*.py)
 
-# Target destination
-#TAR_DEV := rpi.local
-TAR_DEV := 192.168.0.78
-TAR_DEST := ~
-
 # Filenames
 BIN_NAME:=bmp280
 
@@ -28,6 +23,11 @@ BIN_NAME:=bmp280
 SRC_FILES:=$(wildcard $(SRC_DIR)/*.c)
 OBJ_FILES:=$(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC_FILES) )
 BIN_FILES:=$(BIN_DIR)/$(BIN_NAME)
+
+# Target destination
+#TAR_DEV := rpi.local
+TAR_DEV := 192.168.0.78
+TAR_DEST := ~/$(BIN_NAME)
 
 # Rule to compile .c files into .o files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
@@ -59,7 +59,7 @@ test: $(BIN_FILES)
 	@echo "\n------------------------------------------------"
 	@echo "Sending test files to the TARGET" | fold -w 48
 	@echo "------------------------------------------------"
-	ssh $(TAR_DEV) 'mkdir -p lib; mkdir -p bin; mkdir -p src'
+	ssh $(TAR_DEV) 'mkdir -p $(TAR_DEST)/lib; mkdir -p $(TAR_DEST)/bin; mkdir -p $(TAR_DEST)/src'
 	scp $(BIN_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_FILES)
 	scp $(PY_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_NAME).py
 	# scp $(SRC_FILES) $(TAR_DEV):$(TAR_DEST)/$(SRC_DIR)
@@ -67,7 +67,7 @@ test: $(BIN_FILES)
 	@echo "\n------------------------------------------------"
 	@echo "Running test files" | fold -w 48
 	@echo "------------------------------------------------"
-	ssh $(TAR_DEV) 'sudo python -u ./bmp280.py'
+	ssh $(TAR_DEV) 'sudo python -u $(TAR_DEST)/bmp280.py'
 
 	@echo "\n------------------------------------------------"
 	@echo "DONE!" | fold -w 48
