@@ -59,7 +59,7 @@ test: $(BIN_FILES)
 	@echo "\n------------------------------------------------"
 	@echo "Sending test files to the TARGET" | fold -w 48
 	@echo "------------------------------------------------"
-	ssh $(TAR_DEV) 'rm -rf *; mkdir -p lib; mkdir -p bin; mkdir -p src'
+	ssh $(TAR_DEV) 'mkdir -p lib; mkdir -p bin; mkdir -p src'
 	scp $(BIN_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_FILES)
 	scp $(PY_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_NAME).py
 	# scp $(SRC_FILES) $(TAR_DEV):$(TAR_DEST)/$(SRC_DIR)
