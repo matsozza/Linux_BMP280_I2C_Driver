@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 
+BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
+
 def read_bmp280_pipe():
     """Reads data from BMP280 sensor via named pipe and decodes it.
 
@@ -34,7 +36,6 @@ def read_bmp280_pipe():
     payload_data = raw_data[1:-1]    
     
     # Unpack data        
-    BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
     bmp280_data = BMP280_Data_t._make(struct.unpack("<ffbxxx", payload_data))
 
     # Print results
