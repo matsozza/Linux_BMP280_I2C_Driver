@@ -5,8 +5,24 @@ import errno
 import os
 import subprocess
 import sys
+import logging 
 
 BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
+
+# ==============================
+# Configuration
+# ==============================
+LOG_FILE = "/home/matheus/bmp280.log"
+
+# ==============================
+# Setup Logging
+# ==============================
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.ERROR,
+    format="%(asctime)s %(levelname)s: %(message)s"
+)
+logger = logging.getLogger("BMP280")
 
 def read_bmp280_pipe():
     """Reads data from BMP280 sensor via named pipe and decodes it.
@@ -18,7 +34,7 @@ def read_bmp280_pipe():
         None
     """
     
-    print("\n-- Running BMP280 binary --")    
+    logger.info("\n-- Running BMP280 binary --")    
     
     # Run sensor binary in a subprocess
     res = subprocess.Popen(["./bmp280/bin/bmp280"])    
@@ -27,10 +43,10 @@ def read_bmp280_pipe():
     raw_data = async_listen_pipe()
     
     # Confirm received data
-    print(f"-- Received data size: {len(raw_data)} -- ")
+    logger.info(f"-- Received data size: {len(raw_data)} -- ")
     for r in raw_data:
-        print(hex(r), end = " ")
-    print("\n")
+        logger.info(hex(r), end = " ")
+    logger.info("\n")
         
     # Remove SOF and EOF characters
     payload_data = raw_data[1:-1]    
@@ -38,9 +54,9 @@ def read_bmp280_pipe():
     # Unpack data        
     bmp280_data = BMP280_Data_t._make(struct.unpack("<ffbxxx", payload_data))
 
-    # Print results
-    print(f"Pressure: {bmp280_data.pressure} kPa")
-    print(f"Temperature: {bmp280_data.temperature:.2f} °C")
+    # logger.info results
+    logger.info(f"Pressure: {bmp280_data.pressure} kPa")
+    logger.info(f"Temperature: {bmp280_data.temperature:.2f} °C")
     
     return bmp280_data
 
@@ -58,7 +74,7 @@ def async_listen_pipe():
     WAIT_TIMEOUT = 5 #sec
     POLLING_INTVL = 0.01 #sec
     
-    print("\n-- Listening from BMP280 pipe --")
+    logger.info("\n-- Listening from BMP280 pipe --")
     for _ in range(int(WAIT_TIMEOUT/POLLING_INTVL)):
         try:
             fd = os.open(FIFO_PATH, os.O_RDONLY)
@@ -66,21 +82,21 @@ def async_listen_pipe():
                 try:
                     line = fifo.readline()
                     if line:
-                        print(f"-- Read successful --")
+                        logger.info(f"-- Read successful --")
                         return line.strip()                        
                     else:
-                        print("-- Writer closed the FIFO. --")
+                        logger.info("-- Writer closed the FIFO. --")
                         break
                 except IOError as e:
                     if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
-                        print("-- No data available, retrying... --")
+                        logger.error("-- No data available, retrying... --")
                         time.sleep(POLLING_INTVL)
                     else:
                         raise
         except FileNotFoundError:
-                print(f"-- FIFO '{FIFO_PATH}' not found or not created yet. Waiting... -- ")
+                logger.error(f"-- FIFO '{FIFO_PATH}' not found or not created yet. Waiting... -- ")
                 time.sleep(POLLING_INTVL)
-    print("-- Unable to read from pipe. --")
+    logger.error("-- Unable to read from pipe. --")
     return -1
 
 
