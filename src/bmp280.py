@@ -12,7 +12,7 @@ BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
 # ==============================
 # Configuration
 # ==============================
-LOG_FILE = "/home/matheus/bmp280.log"
+LOG_FILE = "/tmp/bmp280.log"
 
 # ==============================
 # Setup Logging
