@@ -28,6 +28,14 @@
 #define OSRS_P 0b101
 #define MODE 0b11
 
+#define DEBUG 0
+
+#if DEBUG == 1
+  #define pinfo(...) printf(__VA_ARGS__)
+#else
+  #define pinfo(...) // disabled
+#endif
+
 // ------------------------------------------------------ Typedef ------------------------------------------------------
 typedef struct {
     float temperature;
@@ -130,7 +138,7 @@ BMP280_Data_t read_bmp_sensor()
     char buf[24];
     BMP280_Data_t bmp280_data = {0, 0, 0};
 
-    printf("\nBMP280 - Polling for Temperature and Pressure Data...\n");
+    pinfo("\nBMP280 - Polling for Temperature and Pressure Data...\n");
 
     // Open I2C bus
     if ((fd = open(I2C_BUS, O_RDWR)) < 0)
@@ -225,8 +233,8 @@ BMP280_Data_t read_bmp_sensor()
     int32_t temperature_calib = compensate_temperature(temperature_raw);
     uint32_t pressure_calib = compensate_pressure(pressure_raw);
 
-    printf("BMP280 - Pressure Data: 0x%X (%d) -> %f kPa\n", pressure_calib, pressure_calib, ((float)pressure_calib)/100000);
-    printf("BMP280 - Temperature Data: 0x%X (%d) -> %f degC\n\n", temperature_calib, temperature_calib, ((float)temperature_calib)/100);
+    pinfo("BMP280 - Pressure Data: 0x%X (%d) -> %f kPa\n", pressure_calib, pressure_calib, ((float)pressure_calib)/100000);
+    pinfo("BMP280 - Temperature Data: 0x%X (%d) -> %f degC\n\n", temperature_calib, temperature_calib, ((float)temperature_calib)/100);
     bmp280_data.temperature = (float)temperature_calib/100;
     bmp280_data.pressure =  (float)pressure_calib/100000;
     bmp280_data.validity = 1;
@@ -265,7 +273,7 @@ int main()
         unlink("/tmp/bmp280_pipe");
         return 1;
     }
-    printf("BMP280 Intf - Pipe created!\n");
+    pinfo("BMP280 Intf - Pipe created!\n");
     
     /* Read sensor data */
     BMP280_Data_t bmp280_data;
@@ -274,10 +282,10 @@ int main()
     /* Insert data into pipe - Try to open pipe w/o blocking */
     int fd;
     int attemptCntr=0;
-    printf("BMP280 Intf - Attempt 1 to open the bmp280 pipe");
+    pinfo("BMP280 Intf - Attempt 1 to open the bmp280 pipe");
     while((fd=open("/tmp/bmp280_pipe", O_WRONLY | O_NONBLOCK)) == -1)
     {
-        printf("\rBMP280 Intf - Attempt %d to open the bmp280 pipe", attemptCntr+1);
+        pinfo("\rBMP280 Intf - Attempt %d to open the bmp280 pipe", attemptCntr+1);
         if (attemptCntr > 50)
         {
             perror("BMP280 Intf - Aborting attempt to open bmp280 pipe after many attempts");
@@ -288,12 +296,12 @@ int main()
         attemptCntr++;
         msleep(10);
     }
-    printf("\nBMP280 Intf - Pipe opened!\n");
+    pinfo("\nBMP280 Intf - Pipe opened!\n");
 
     write(fd, "|", 1);
     write(fd, (const void*) &bmp280_data, sizeof(bmp280_data));
     write(fd, "*", 1);
-    printf("BMP280 Intf - BMP280 info written to the pipe!\n");
+    pinfo("BMP280 Intf - BMP280 info written to the pipe!\n");
 
     close(fd);
     unlink("/tmp/bmp280_pipe");
