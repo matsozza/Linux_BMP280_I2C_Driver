@@ -63,6 +63,7 @@ test: $(BIN_FILES)
 	scp $(BIN_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_FILES)
 	scp $(PY_FILES) $(TAR_DEV):$(TAR_DEST)/$(BIN_NAME).py
 	# scp $(SRC_FILES) $(TAR_DEV):$(TAR_DEST)/$(SRC_DIR)
+	ssh $(TAR_DEV) 'sudo chmod 777 $(TAR_DEST)/$(BIN_NAME).py'	
 
 	@echo "\n------------------------------------------------"
 	@echo "Running test files" | fold -w 48
