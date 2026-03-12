@@ -13,13 +13,20 @@ BMP280_Data_t = namedtuple('DHT22_Data_t', 'temperature pressure validity')
 # Configuration
 # ==============================
 LOG_FILE = "/tmp/bmp280.log"
+# Remove the file if it exists
+if os.path.exists(LOG_FILE):
+    os.remove(LOG_FILE)
+
+# Recreate it (it will be empty and owned by the current user)
+with open(LOG_FILE, "w") as f:
+    f.write("Log started\n")
 
 # ==============================
 # Setup Logging
 # ==============================
 logging.basicConfig(
     filename=LOG_FILE,
-    level=logging.ERROR,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s: %(message)s"
 )
 logger = logging.getLogger("BMP280")
@@ -44,8 +51,7 @@ def read_bmp280_pipe():
     
     # Confirm received data
     logger.info(f"-- Received data size: {len(raw_data)} -- ")
-    for r in raw_data:
-        logger.info(hex(r), end = " ")
+    logger.info([hex(r) for r in raw_data])
     logger.info("\n")
         
     # Remove SOF and EOF characters

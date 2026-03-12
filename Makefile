@@ -26,7 +26,7 @@ BIN_FILES:=$(BIN_DIR)/$(BIN_NAME)
 
 # Target destination
 #TAR_DEV := rpi.local
-TAR_DEV := 192.168.0.78
+TAR_DEV := matheus@192.168.0.78
 TAR_DEST := ~/$(BIN_NAME)
 
 # Rule to compile .c files into .o files
